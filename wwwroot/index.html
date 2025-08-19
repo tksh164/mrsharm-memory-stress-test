@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Stress Tester</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-memory"></i>
+                    <h1>Memory Stress Tester</h1>
+                </div>
+                <div class="subtitle">
+                    Test memory allocation limits and trigger OOM conditions
+                </div>
+            </div>
+        </header>
+
+        <div class="dashboard">
+            <!-- Memory Status Card -->
+            <div class="card status-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-line"></i> Memory Status</h3>
+                    <button id="refreshStatus" class="btn-icon">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <div class="status-label">Total Memory</div>
+                            <div class="status-value" id="totalMemory">0 MB</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Working Set</div>
+                            <div class="status-value" id="workingSet">0 MB</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Managed Memory</div>
+                            <div class="status-value" id="managedMemory">0 MB</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Active Allocations</div>
+                            <div class="status-value" id="activeAllocations">0</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">GC Gen 0</div>
+                            <div class="status-value" id="gen0Collections">0</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">GC Gen 1</div>
+                            <div class="status-value" id="gen1Collections">0</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">GC Gen 2</div>
+                            <div class="status-value" id="gen2Collections">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Memory Allocation Controls -->
+            <div class="card controls-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-sliders-h"></i> Memory Allocation</h3>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label for="memoryAmount">Memory to Allocate (MB)</label>
+                        <div class="input-group">
+                            <input type="number" id="memoryAmount" value="512" min="1" max="10240" step="1">
+                            <div class="input-group-append">
+                                <span class="input-group-text">MB</span>
+                            </div>
+                        </div>
+                        <div class="slider-container">
+                            <input type="range" id="memorySlider" min="1" max="2048" value="512" step="1">
+                            <div class="slider-labels">
+                                <span>1 MB</span>
+                                <span>2048 MB</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="thresholdAmount">Memory Threshold (MB)</label>
+                        <div class="input-group">
+                            <input type="number" id="thresholdAmount" value="1024" min="100" max="4096" step="1">
+                            <div class="input-group-append">
+                                <span class="input-group-text">MB</span>
+                            </div>
+                        </div>
+                        <div class="threshold-info">
+                            <i class="fas fa-info-circle"></i>
+                            When allocations exceed this threshold, 500 errors will be returned
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button id="allocateBtn" class="btn btn-primary">
+                            <i class="fas fa-play"></i>
+                            Allocate Memory
+                        </button>
+                        <button id="clearBtn" class="btn btn-secondary">
+                            <i class="fas fa-trash"></i>
+                            Clear All
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stress Test Controls -->
+            <div class="card stress-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-fire"></i> Stress Test</h3>
+                </div>
+                <div class="card-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="stressIterations">Iterations</label>
+                            <input type="number" id="stressIterations" value="10" min="1" max="100">
+                        </div>
+                        <div class="form-group">
+                            <label for="stressMBPerIteration">MB per Iteration</label>
+                            <input type="number" id="stressMBPerIteration" value="100" min="1" max="1000">
+                        </div>
+                        <div class="form-group">
+                            <label for="stressDelay">Delay (ms)</label>
+                            <input type="number" id="stressDelay" value="100" min="0" max="5000">
+                        </div>
+                    </div>
+                    
+                    <button id="stressTestBtn" class="btn btn-danger">
+                        <i class="fas fa-bolt"></i>
+                        Start Stress Test
+                    </button>
+                    
+                    <div id="stressProgress" class="progress-container" style="display: none;">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="stressProgressBar"></div>
+                        </div>
+                        <div class="progress-text" id="stressProgressText">0%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Panel -->
+            <div class="card results-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-list"></i> Results</h3>
+                    <button id="clearResults" class="btn-icon">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="results" class="results-container">
+                        <div class="no-results">
+                            <i class="fas fa-info-circle"></i>
+                            No operations performed yet. Start allocating memory to see results.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Memory Visualization -->
+        <div class="card visualization-card">
+            <div class="card-header">
+                <h3><i class="fas fa-chart-area"></i> Memory Usage Visualization</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="memoryChart" width="800" height="400"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Processing memory allocation...</div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

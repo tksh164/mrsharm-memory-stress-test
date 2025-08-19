@@ -1,0 +1,86 @@
+name: Deploy Memory Stress Tester to Azure
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+        - dev
+        - staging
+        - prod
+
+env:
+  AZURE_WEBAPP_PACKAGE_PATH: '.'
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 🛎️ Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🔧 Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: 📦 Restore dependencies
+      run: dotnet restore
+
+    - name: 🔨 Build application
+      run: dotnet build --configuration Release --no-restore
+
+    - name: 🧪 Run tests (if any)
+      run: dotnet test --no-restore --verbosity normal
+
+    - name: 📦 Publish application
+      run: dotnet publish -c Release -o ./publish
+
+    - name: 🗜️ Create deployment package
+      run: |
+        cd ./publish
+        zip -r ../deployment.zip .
+        cd ..
+
+    - name: 🔐 Login to Azure
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: ☁️ Deploy Bicep template
+      uses: azure/arm-deploy@v2
+      id: deploy
+      with:
+        subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        resourceGroupName: ${{ secrets.AZURE_RESOURCE_GROUP }}
+        template: ./deploy/main.bicep
+        parameters: |
+          @./deploy/parameters.${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'dev') }}.json
+        failOnStdErr: false
+
+    - name: 🚀 Deploy to Azure Web App
+      uses: azure/webapps-deploy@v3
+      with:
+        app-name: ${{ steps.deploy.outputs.appServiceName }}
+        package: ./deployment.zip
+
+    - name: 🧹 Cleanup
+      run: |
+        rm -f ./deployment.zip
+        rm -rf ./publish
+
+    - name: 📊 Output deployment info
+      run: |
+        echo "🎉 Deployment completed successfully!"
+        echo "🌐 Application URL: ${{ steps.deploy.outputs.appServiceUrl }}"
+        echo "📱 Environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'dev') }}"
